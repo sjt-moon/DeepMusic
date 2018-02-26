@@ -37,6 +37,12 @@ class Trainer():
         return input, teacher
 
     def _fit(self, input, teacher):
+        '''fit
+        
+        @para
+        input: LongTensor, idx
+        teacher: LongTensor, idx
+        '''
         hidden = self.model.init_hidden()
         self.model.zero_grad()
         loss = 0.0
@@ -62,7 +68,20 @@ class Trainer():
                 avg_loss = 0.0
         return losses
 
-    def inference(self, start_tune='<start>', size=100, temp=0.1):
+    def predict(self, data):
+        '''predict sequence
+        
+        @para
+        data: list of chars
+        '''
+        input = self.char2idx(data)
+        hidden = self.model.init_hidden()
+        for c in input:
+            output, hidden = self.model(c, hidden)
+        # to be continue
+
+    def inference(self, start_tune='<start>', size=200, temp=0.6):
+        '''Generate tunes.'''
         output_tune = ''
 
         hidden = self.model.init_hidden()
@@ -95,6 +114,10 @@ def get_dicts(data):
 def get_data(filename='../data/input.txt'):
     assert path.isfile(filename)
     return [d for d in (open(filename)).read()]
+
+def split_data(data, ratios=[0.8, 0.2]):
+    size = int(ratios[0] * len(data))
+    return data[:size], data[size:]
 
 # this is almost useless
 def get_dateset(filename='../data/input.txt', split_ratio=[0.8,0.2], batch_size=25, use_one_hot=True):

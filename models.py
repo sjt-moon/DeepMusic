@@ -15,6 +15,8 @@ class Music(nn.Module):
         self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers)
         self.decoder = nn.Linear(hidden_size, voc_size)
 
+        #self.hidden = self.init_hidden()
+
     def forward(self, input, hidden):
         '''
         
