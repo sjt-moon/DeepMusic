@@ -147,7 +147,7 @@ def get_dicts(data):
         idx2char_dict[i] = c
     return char2idx_dict, idx2char_dict
 
-def get_data(filename='../data/input.txt'):
+def get_data(filename='./input.txt'):
     assert path.isfile(filename)
     return [d for d in (open(filename)).read()]
 
