@@ -37,7 +37,7 @@ class Trainer():
         data: list of chars
         '''
         size = int(len(data) / self.chunk_size) * self.chunk_size
-        for i in range(size / self.chunk_size):
+        for i in range(int(size / self.chunk_size)):
             yield data[i*self.chunk_size: (i+1)*self.chunk_size]
 
     def char2idx(self, seq):
