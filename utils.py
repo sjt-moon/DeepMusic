@@ -111,10 +111,16 @@ class Trainer():
             output, hidden = self.model(input[i], hidden)
             loss += self.criterion(output, teacher[i])
             
-            prediction_idx = np.argmax(output.data.numpy()[0])
+            if self.use_gpu:
+                prediction_idx = np.argmax(output.data.cpu().numpy()[0])
+            else:
+                prediction_idx = np.argmax(output.data.numpy()[0])
             predictions.append(prediction_idx)
 
-        labels = teacher.data.numpy()
+        if self.use_gpu:
+            labels = teacher.data.cpu().numpy()
+        else:
+            labels = teacher.data.numpy()
         accu = np.sum(predictions == labels) / len(predictions)
         return loss.data[0] / self.chunk_size, accu
 
