@@ -77,6 +77,8 @@ class Trainer():
     def fit(self, train_data, valid_data, max_iter=2000, log_freq=100):
         train_losses = []
         avg_loss = 0
+        valid_losses, valid_accuracies = [], []
+
         for epoch in range(1, max_iter+1):
             loss = self._fit(*self.get_next_batch(train_data))
             avg_loss += loss
@@ -87,8 +89,7 @@ class Trainer():
                 train_losses.append(avg_loss)
                 avg_loss = 0.0
 
-                # record validation performance
-                valid_losses, valid_accuracies = [], []
+                # record validation performance 
                 val_loss_avg, val_accu_avg = 0, 0
                 num_val_chunks = 0
                 for val_chunk in self.sequential_chunk(valid_data):
