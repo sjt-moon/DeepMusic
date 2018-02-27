@@ -7,13 +7,17 @@ from torch.autograd import Variable
 from sklearn.preprocessing import OneHotEncoder
 
 class Trainer():
-    def __init__(self, model, char2idx_dict, idx2char_dict, chunk_size=25, lr=0.001):
+    def __init__(self, model, char2idx_dict, idx2char_dict, chunk_size=25, lr=0.001, use_gpu=True):
         self.chunk_size = chunk_size
         self.model = model
         self.char2idx_dict = char2idx_dict
         self.idx2char_dict = idx2char_dict
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        self.use_gpu = use_gpu
+
+        if use_gpu:
+            self.model.cuda()
 
     def random_chunk(self, data):
         '''Get a chunk of chars randomly.
@@ -38,6 +42,8 @@ class Trainer():
         tensor = torch.zeros(len(seq)).long()
         for i,c in enumerate(seq):
             tensor[i] = self.char2idx_dict[c]
+        if self.use_gpu:
+            return Variable(tensor.cuda())
         return Variable(tensor)
 
     def get_next_batch(self, data):
