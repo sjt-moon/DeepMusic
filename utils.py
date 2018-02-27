@@ -24,6 +24,16 @@ class Trainer():
         start_idx = random.randint(0, len(data) - self.chunk_size)
         return data[start_idx: start_idx + self.chunk_size + 1]
 
+    def sequential_chunk(self, data):
+        '''Get chunks sequentially.
+        
+        @para
+        data: list of chars
+        '''
+        size = int(len(data) / self.chunk_size) * self.chunk_size
+        for i in range(size / self.chunk_size):
+            yield data[i*self.chunk_size: (i+1)*self.chunk_size]
+
     def char2idx(self, seq):
         tensor = torch.zeros(len(seq)).long()
         for i,c in enumerate(seq):
@@ -50,35 +60,55 @@ class Trainer():
         for i in range(self.chunk_size):
             output, hidden = self.model(input[i], hidden)
             loss += self.criterion(output, teacher[i])
+            
         loss.backward()
         self.optimizer.step()
         return loss.data[0] / self.chunk_size
 
-    def fit(self, data, max_iter=2000, log_freq=100):
-        losses = []
+    def fit(self, train_data, valid_data, max_iter=2000, log_freq=100):
+        train_losses = []
         avg_loss = 0
         for epoch in range(1, max_iter+1):
-            loss = self._fit(*self.get_next_batch(data))
+            loss = self._fit(*self.get_next_batch(train_data))
             avg_loss += loss
 
             if epoch % log_freq == 0:
                 print('epoch %d, loss %.3f' % (epoch, loss))
                 avg_loss /= log_freq
-                losses.append(avg_loss)
+                train_losses.append(avg_loss)
                 avg_loss = 0.0
-        return losses
 
-    def predict(self, data):
-        '''predict sequence
+                # record validation performance
+                valid_losses, valid_accuracies = [], []
+                for val_chunk in self.squential_chunk(valid_data):
+                    val_input = self.char2idx(val_chunk[:-1])
+                    val_teacher = self.char2idx(val_chunk[1:])
+                    val_loss, val_accu = self.predict(val_input, val_teacher)
+                    valid_losses.append(val_loss)
+                    valid_accuracies.append(val_accu)
+        return train_losses, valid_losses, valid_accuracies
+    
+    def predict(self, input, teacher):
+        '''predict
         
         @para
-        data: list of chars
+        input: LongTensor, idx
+        teacher: LongTensor, idx
         '''
-        input = self.char2idx(data)
         hidden = self.model.init_hidden()
-        for c in input:
-            output, hidden = self.model(c, hidden)
-        # to be continue
+        loss = 0.0
+        predictions = []
+
+        for i in range(self.chunk_size):
+            output, hidden = self.model(input[i], hidden)
+            loss += self.criterion(output, teacher[i])
+            
+            prediction_idx = np.argmax(output.data.numpy()[0])
+            predictions.append(prediction_idx)
+
+        labels = teacher.data.numpy()
+        accu = np.sum(predictions == labels) / len(predictions)
+        return loss.data[0] / self.chunk_size, accu
 
     def inference(self, start_tune='<start>', size=200, temp=0.6):
         '''Generate tunes.'''
