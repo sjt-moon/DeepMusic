@@ -8,6 +8,8 @@ from sklearn.preprocessing import OneHotEncoder
 
 class Trainer():
     def __init__(self, model, char2idx_dict, idx2char_dict, chunk_size=25, lr=0.001, use_gpu=True):
+        assert use_gpu == model.use_gpu
+
         self.chunk_size = chunk_size
         self.model = model
         self.char2idx_dict = char2idx_dict
