@@ -36,9 +36,10 @@ class Trainer():
         @para
         data: list of chars
         '''
-        size = int(len(data) / self.chunk_size) * self.chunk_size
-        for i in range(int(size / self.chunk_size)):
-            yield data[i*self.chunk_size: (i+1)*self.chunk_size]
+        chunk_size = self.chunk_size + 1
+        size = int(len(data) / chunk_size) * chunk_size
+        for i in range(int(size / chunk_size)):
+            yield data[i*chunk_size: (i+1)*chunk_size]
 
     def char2idx(self, seq):
         tensor = torch.zeros(len(seq)).long()
