@@ -88,7 +88,7 @@ class Trainer():
 
                 # record validation performance
                 valid_losses, valid_accuracies = [], []
-                for val_chunk in self.squential_chunk(valid_data):
+                for val_chunk in self.sequential_chunk(valid_data):
                     val_input = self.char2idx(val_chunk[:-1])
                     val_teacher = self.char2idx(val_chunk[1:])
                     val_loss, val_accu = self.predict(val_input, val_teacher)
