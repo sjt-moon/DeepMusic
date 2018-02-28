@@ -62,7 +62,8 @@ class Trainer():
                 avg_loss = 0.0
         return losses
 
-    def inference(self, start_tune='<start>', size=100, temp=0.1):
+    #def inference(self, start_tune='<start>', size=100, temp=0.1):
+    def inference(self, start_tune='<start>', temp=0.1):
         output_tune = ''
 
         hidden = self.model.init_hidden()
@@ -73,7 +74,9 @@ class Trainer():
             _, hidden = self.model(start_tune_idx[i], hidden)
 
         input = start_tune_idx[-1]
-        for i in range(size):
+        flag = 1
+        while flag:
+        #for i in rang(size):
             output, hidden = self.model(input, hidden)
 
             # sampling
@@ -81,6 +84,10 @@ class Trainer():
             sample_idx = torch.multinomial(output_dist, 1)[0]
             sample = self.idx2char_dict[sample_idx]
             output_tune += sample
+            index = output_tune.find("<end>")
+            
+            if index != -1:
+                flag = 0
             input = self.char2idx(sample)
         return output_tune
 

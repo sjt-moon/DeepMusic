@@ -3,16 +3,17 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 class Music(nn.Module):
-    def __init__(self, voc_size, embedding_dim=100, hidden_size=50 ,num_layers=1):
+    def __init__(self, voc_size, embedding_dim=100, hidden_size=50 ,num_layers=2, drop_out = 0.1):
         super(Music, self).__init__()
         self.voc_size = voc_size
         self.embedding_dim = embedding_dim
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.drop_out = drop_out
 
         # (|Vocabulary|, embedding_dim)
         self.embedding = nn.Embedding(voc_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers)
+        self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers, dropout = drop_out)
         self.decoder = nn.Linear(hidden_size, voc_size)
 
     def forward(self, input, hidden):
