@@ -21,3 +21,19 @@ class TwoWayDictionary:
     
     def __len__(self):
         return len(self.v2i)
+
+
+def get_hidden_states(musicfile, net, trainer):
+    with open(musicfile) as infile:
+        content = infile.read()
+    string = '`' + string + '$'
+    net.hidden = trainer.prepare_hidden(1)
+    
+    hidden_states = []
+    for ch in string:
+        seqs = [map(ord, ch)]
+        inputs, _ = trainer.prepare_inputs_targets(seqs)
+        _ = net(inputs, [1], per_char_generation=True)
+        net.update_hidden()
+        hidden_states.append(net.hidden.data.cpu())
+    return hidden_states

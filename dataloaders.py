@@ -13,6 +13,7 @@ class Dataloader:
         :param strict_len_lims: whether to strictly apply the `len_lims` at the
                end of the dataset
         """
+        assert reduce(min, map(len, dataset)) >= Dataloader.MIN_SEQ_LEN, 'too short a training sequence'
         self.dataset = dataset
         self.strict_len_lims = strict_len_lims
         self.batch_size = batch_size
@@ -94,10 +95,39 @@ class AcrossTuneRandomDataloader(AcrossTuneDataloader):
         self.sort_seqs(seqs)
         return seqs
 
+class MultiThreadAcrossTuneNonOverlapDataloader(Dataloader):
+    # Must not change `batch_size` halfway!!!
+    def __init__(self, dataset, len_lims, batch_size=1, strict_len_lims=False):
+        Dataloader.__init__(self, dataset, batch_size=batch_size, strict_len_lims=strict_len_lims)
+        self.len_lims = len_lims
+        
+        self.tune_cursors = [None] * self.batch_size
+        self.note_cursors = [None] * self.batch_size
+    
+    def next(self):
+        seqs = []
+        for i in range(self.batch_size):
+            disposable_len = len(self.dataset[self.tune_cursors[i]]) - self.note_cursors[i]\
+                             if self.tune_cursors[i] is not None else None
+            if any((self.tune_cursors[i] is None,
+                    disposable_len < Dataloader.MIN_SEQ_LEN,
+                    self.strict_len_lims and disposable_len < self.lims[0])):
+                self.tune_cursors[i] = np.random.randint(len(self.dataset))
+                while self.strict_len_lims and len(self.dataset[self.tune_cursors[i]]) < self.len_lims[0]:
+                    self.tune_cursors[i] = np.random.randint(len(self.dataset))
+                self.note_cursors[i] = 0
+                disposable_len = len(self.dataset[self.tune_cursors[i]]) - self.note_cursors[i]
+            l = np.random.randint(min(disposable_len, self.len_lims[0]),
+                                  min(1 + disposable_len, self.len_lims[1]))
+            seqs.append(self.dataset[self.tune_cursors[i]][self.note_cursors[i]:self.note_cursors[i]+l])
+            self.note_cursors[i] += l
+        # TODO: no `sort_seqs` here!!!
+        return seqs
+
 
 class ValidationDataloader(Dataloader):
     def __init__(self, dataset):
-        Dataloader.__init__(self, dataset)
+        Dataloader.__init__(self, dataset, batch_size=len(dataset))
 
     def next(self):
         seqs = copy.copy(self.dataset)

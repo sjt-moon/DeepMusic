@@ -1,9 +1,12 @@
 import time
+import datetime
 import trainlib
 import torch
+import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
 import itertools
+import pickle
 
 
 def prepare_inputs(corpus, seqs, cuda=False, requires_grad=False):
@@ -15,22 +18,9 @@ def prepare_inputs(corpus, seqs, cuda=False, requires_grad=False):
     return inputs
 
 
-class Simulator:
-    def __init__(self, model, corpus):
-        self.model = model
-        self.corpus = corpus
-
-    def run(self, primer):
-        """
-        :param primer: a string primer
-        :return: the generated string
-        """
-        pass
-
-
 class Trainer:
     def __init__(self, net, loaders, corpus, criterion, optimizer,
-                 cuda, log_period):
+                 cuda, log_period=True, gen_period=True):
         self.net = net
         self.loaders = loaders  # {'train': train_loader, 'valid': valid_loader}
         self.corpus = corpus
@@ -47,11 +37,20 @@ class Trainer:
             self.log_period = 20
         else:
             self.log_period = log_period
+        
+        if gen_period is False:
+            self.gen_period = None
+        elif gen_period is True:
+            self.gen_period = 100
+        else:
+            self.gen_period = gen_period
 
         self.epoch = 0  # accumulated epoch
         self.train_losses = list()
         self.valid_losses = list()
         self.samples = dict()  # { epoch: samples }
+        
+        self.softmax = nn.Softmax()
 
     def prepare_inputs_targets(self, seqs, requires_grad=False):
         """
@@ -81,25 +80,58 @@ class Trainer:
         hidden = (Variable(hidden[0], requires_grad=requires_grad),
                   Variable(hidden[1], requires_grad=requires_grad))
         return hidden
+    
+    def predict_outputs(self, outputs, temperature):
+        outputs = self.softmax(outputs.div(temperature))
+        outputs = torch.multinomial(outputs, 1)
+        return outputs
 
     def print_losses(self, epoch, time_elapsed):
         print '[epoch {}] {}'.format(epoch, time_elapsed)
         print 'training loss: {}'.format(self.train_losses[-1])
         print 'validation loss: {}'.format(self.valid_losses[-1])
+    
+    def validate(self):
+        seqs = next(self.loaders['valid'])
+        loss = self.evaluate_loss(seqs, self.loaders['valid'].batch_size)
+        self.valid_losses.append(loss.data[0])
 
-    def simulate(self):
-        # TODO
-        pass
-
-
+    def simulate(self, primer=[ord('`')], temperature=1.0):
+        """
+        To generate music.
+        """
+        START_SYMBOL = ord('`')
+        END_SYMBOL = ord('$')
+        softmax = nn.Softmax()
+        assert primer[0] == START_SYMBOL
+        generated = primer[:]
+        
+        seqs = [primer]
+        inputs, _ = self.prepare_inputs_targets(seqs, requires_grad=False)
+        self.net.hidden = self.prepare_hidden(1, requires_grad=False)
+        outputs = self.net(inputs, [len(primer)], per_char_generation=True)  # teaching force in guided generation
+        self.net.update_hidden()
+        output = self.predict_outputs(outputs, temperature).view(-1).cpu().data[-1]
+        output = self.corpus.get(output)
+        generated.append(output)
+        while output != END_SYMBOL:
+            seqs = [[output]]
+            inputs, _ = self.prepare_inputs_targets(seqs, requires_grad=True)
+            outputs = self.net(inputs, [1], per_char_generation=True)
+            self.net.update_hidden()
+            output = self.predict_outputs(outputs, temperature).view(-1).cpu().data[0]
+            output = self.corpus.get(output)
+            generated.append(output)
+        return generated
+        
 class CurriculumTrainer(Trainer):
     def __init__(self, net, loaders, corpus, criterion, optimizer, curriculum,
-                 cuda, log_period):
+                 cuda, log_period=True, gen_period=True):
         """
         :param curriculum: function that accepts `epoch` and returns `len_lims`
         """
         Trainer.__init__(self, net, loaders, corpus, criterion, optimizer, cuda,
-                         log_period)
+                         log_period=log_period, gen_period=gen_period)
         self.curriculum = curriculum
 
     def evaluate_loss(self, seqs, batch_size):
@@ -113,7 +145,7 @@ class CurriculumTrainer(Trainer):
         # TODO: why mustn't I normalize over N?
         loss = self.criterion(outputs, targets)# / (sum(seq_lens)-len(seq_lens))
         return loss
-
+    
     def train(self, max_epoch):
         start = time.time()
         for ep in range(max_epoch):
@@ -127,11 +159,12 @@ class CurriculumTrainer(Trainer):
 
             self.validate()
 
-            if not ep % self.log_period:
+            if self.log_period is not None and not ep % self.log_period:
                 self.print_losses(ep, time.time() - start)
+            if self.gen_period is not None and not ep % self.gen_period:
+                music = ''.join(map(chr, self.simulate())[1:-1])
+                if ep not in self.samples:
+                    self.samples[ep] = list()
+                self.samples[ep].append(music)
+            
         self.epoch += ep
-
-    def validate(self):
-        seqs = next(self.loaders['valid'])
-        loss = self.evaluate_loss(seqs, self.loaders['valid'].batch_size)
-        self.valid_losses.append(loss.data[0])

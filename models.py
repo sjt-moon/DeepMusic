@@ -125,6 +125,9 @@ class MusicGenNet(nn.Module):
         self.n_output = n_output
         self.n_layers = n_layers
 
+        self.tanh = nn.Tanh()
+
+        self.pfc = nn.Linear(self.n_output, self.n_output)  # newly added
         rnn_model = nn.GRU if using_gru else nn.LSTM
         self.rnn = rnn_model(self.n_output, self.n_lstm,
                              num_layers=self.n_layers, dropout=dropout)
@@ -145,9 +148,10 @@ class MusicGenNet(nn.Module):
         """
         Replace `self.hidden` with `self.next_hidden`.
         """
-        self.hidden.data = self.next_hidden.data
+        self.hidden[0].data = self.next_hidden[0].data
+        self.hidden[1].data = self.next_hidden[1].data
         
-    def forward(self, inputs, seq_lens):
+    def forward(self, inputs, seq_lens, per_char_generation=False):
         """
         Assign value to `self.hidden` as wish before calling this method, but it
         must be of Variable type. Remember to repack it at least once for each
@@ -163,8 +167,9 @@ class MusicGenNet(nn.Module):
         # the second return value is just `seq_lens`:
         outputs, _ = pad_packed_sequence(packed_outputs)
         outputs = outputs.transpose(0, 1)  # coordinate: [B x max(len(S)) x *]
-        assert min(seq_lens) > 1, 'too small seq_lens'
-        seq_lens = map(lambda x: x - 1, seq_lens)  # discard the last output of each sequence
+        if not per_char_generation:
+            assert min(seq_lens) > 1, 'too small seq_lens'
+            seq_lens = map(lambda x: x - 1, seq_lens)  # discard the last output of each sequence
         # coordinates: [sum(S) x *]
         outputs = torch.cat([outputs[i][:seq_lens[i]] for i in range(len(seq_lens))])
         outputs = self.fc(outputs)

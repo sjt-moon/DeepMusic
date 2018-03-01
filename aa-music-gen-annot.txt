@@ -1,0 +1,7 @@
+`X:1
+T:Cossinndy (1987)
+Z:id:hn-no-paz-94
+M:2/4
+L:1/8
+K:D
+G>A|AB dB|AF dB|d2ed Bd|c2 dc|cB/b/a>ng|ed dc|1 cA FA|d4:|$
