@@ -1,20 +1,29 @@
-#!/usr/bin/env python
-import os
 import pickle
+import models
+from utils import TwoWayDictionary
+import sys
+import argparse
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import os
 
 
-datadir = 'out'
+def make_parser():
+    parser = argparse.ArgumentParser(description='Create loss plots from dumped pickle file')
+    parser.add_argument('filenames', metavar='filename', nargs='*')
+    return parser
 
-
-for filename in filter(lambda x: x.endswith('.p'), os.listdir(datadir)):
-    with open(filename, 'rb') as infile:
-        _, train_losses, valid_losses, _ = pickle.load(infile)
-    plt.figure(figsize=(8, 6))
-    plt.xlabel('mini-batches (batch size 128)')
-    plt.ylabel('loss')
-    plt.plot(train_losses)
-    plt.plot(valid_losses)
-    plt.grid(True)
-    plt.legend(('train', 'validation'))
-    plt.savefig(os.path.splitext(filename)[0] + '-losses.png')
+def main():
+    args = make_parser().parse_args(sys.argv[1:])
+    for filename in args.filenames:
+        with open(filename, 'rb') as infile:
+            _, train_losses, valid_losses, _ = pickle.load(infile)
+        plt.figure(figsize=(8, 6))
+        plt.plot(train_losses)
+        plt.plot(valid_losses)
+        plt.legend(('train', 'validation'))
+        plt.xlabel('# of batches')
+        plt.ylabel('losses')
+        plt.grid(True)
+        plt.savefig(os.path.splitext(filename)[0] + '.png')
