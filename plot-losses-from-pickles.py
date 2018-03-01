@@ -27,3 +27,6 @@ def main():
         plt.ylabel('losses')
         plt.grid(True)
         plt.savefig(os.path.splitext(filename)[0] + '.png')
+
+if __name__ == '__main__':
+    main()
