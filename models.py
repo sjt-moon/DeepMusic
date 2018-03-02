@@ -125,9 +125,6 @@ class MusicGenNet(nn.Module):
         self.n_output = n_output
         self.n_layers = n_layers
 
-        self.tanh = nn.Tanh()
-
-        self.pfc = nn.Linear(self.n_output, self.n_output)  # newly added
         rnn_model = nn.GRU if using_gru else nn.LSTM
         self.rnn = rnn_model(self.n_output, self.n_lstm,
                              num_layers=self.n_layers, dropout=dropout)
@@ -140,16 +137,23 @@ class MusicGenNet(nn.Module):
         :param batch_size: the batch size
         :return: a tuple of Tensor (not Variable!)
         """
+        
         hidden_size = (self.n_layers, batch_size, self.n_lstm)
-        return (torch.zeros(*hidden_size),
-                torch.zeros(*hidden_size))
+        if type(self.rnn) is nn.LSTM:
+            return (torch.zeros(*hidden_size),
+                    torch.zeros(*hidden_size))
+        else:
+            return torch.zeros(*hidden_size)
 
     def update_hidden(self):
         """
         Replace `self.hidden` with `self.next_hidden`.
         """
-        self.hidden[0].data = self.next_hidden[0].data
-        self.hidden[1].data = self.next_hidden[1].data
+        if type(self.rnn) is nn.LSTM:
+            self.hidden[0].data = self.next_hidden[0].data
+            self.hidden[1].data = self.next_hidden[1].data
+        else:
+            self.hidden.data = self.next_hidden.data
         
     def forward(self, inputs, seq_lens, per_char_generation=False):
         """

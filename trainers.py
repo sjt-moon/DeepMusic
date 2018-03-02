@@ -75,10 +75,15 @@ class Trainer:
 
     def prepare_hidden(self, batch_size, requires_grad=False):
         hidden = self.net.init_hidden(batch_size)
-        if self.cuda:
-            hidden = (hidden[0].cuda(), hidden[1].cuda())
-        hidden = (Variable(hidden[0], requires_grad=requires_grad),
-                  Variable(hidden[1], requires_grad=requires_grad))
+        if type(self.net.rnn) is nn.LSTM:
+            if self.cuda:
+                hidden = (hidden[0].cuda(), hidden[1].cuda())
+            hidden = (Variable(hidden[0], requires_grad=requires_grad),
+                      Variable(hidden[1], requires_grad=requires_grad))
+        else:
+            if self.cuda:
+                hidden = hidden.cuda()
+            hidden = Variable(hidden, requires_grad=requires_grad)
         return hidden
     
     def predict_outputs(self, outputs, temperature):
