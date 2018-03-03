@@ -101,7 +101,6 @@ def filterout(job_description):
         skipit = True
     elif curriculumf is not curriculum and max_epoch < 1500:
         skipit = True
-    elif curriculumf is not curriculum and dropouts
     return skipit
 
 
