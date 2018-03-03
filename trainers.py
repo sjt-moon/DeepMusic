@@ -101,7 +101,7 @@ class Trainer:
         loss = self.evaluate_loss(seqs, self.loaders['valid'].batch_size)
         self.valid_losses.append(loss.data[0])
 
-    def simulate(self, primer=[ord('`')], temperature=1.0):
+    def simulate(self, primer=[ord('`')], temperature=1.0, record_hidden_outputs=False):
         """
         To generate music.
         """
@@ -110,12 +110,20 @@ class Trainer:
         softmax = nn.Softmax()
         assert primer[0] == START_SYMBOL
         generated = primer[:]
+        if record_hidden_outputs:
+            hidden_outputs = list()
         
         seqs = [primer]
         inputs, _ = self.prepare_inputs_targets(seqs, requires_grad=False)
         self.net.hidden = self.prepare_hidden(1, requires_grad=False)
         outputs = self.net(inputs, [len(primer)], per_char_generation=True)  # teaching force in guided generation
         self.net.update_hidden()
+        if record_hidden_outputs:
+            if type(self.net) is nn.LSTM:
+                intermediate_hidden = tuple(self.net.hidden[i].data.cpu() for i in range(2))
+            else:
+                intermediate_hidden = self.net.hidden.data.cpu()
+            hidden_outputs.append(intermediate_hidden)
         output = self.predict_outputs(outputs, temperature).view(-1).cpu().data[-1]
         output = self.corpus.get(output)
         generated.append(output)
@@ -124,10 +132,16 @@ class Trainer:
             inputs, _ = self.prepare_inputs_targets(seqs, requires_grad=True)
             outputs = self.net(inputs, [1], per_char_generation=True)
             self.net.update_hidden()
+            if record_hidden_outputs:
+                if type(self.net) is nn.LSTM:
+                    intermediate_hidden = tuple(self.net.hidden[i].data.cpu() for i in range(2))
+                else:
+                    intermediate_hidden = self.net.hidden.data.cpu()
+                hidden_outputs.append(intermediate_hidden)
             output = self.predict_outputs(outputs, temperature).view(-1).cpu().data[0]
             output = self.corpus.get(output)
             generated.append(output)
-        return generated
+        return generated if not record_hidden_outputs else (generated, hidden_outputs)
         
 class CurriculumTrainer(Trainer):
     def __init__(self, net, loaders, corpus, criterion, optimizer, curriculum,
